@@ -5,6 +5,7 @@
 # Clion
 .idea
 cmake-build-*
+build/
 venv
 
 # Visual Studio Code
