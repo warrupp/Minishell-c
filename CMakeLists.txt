@@ -13,9 +13,9 @@ endif ()
 #
 
 project(
-    TP1
-    VERSION 24
-    DESCRIPTION "Shell"
+    minishell
+    VERSION 1.0
+    DESCRIPTION "A minimal Unix shell written in C"
     LANGUAGES C)
 
 set(CMAKE_C_STANDARD 17)

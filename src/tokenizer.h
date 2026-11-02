@@ -1,5 +1,5 @@
-#ifndef TP1_TOKENIZER_H
-#define TP1_TOKENIZER_H
+#ifndef MINISHELL_TOKENIZER_H
+#define MINISHELL_TOKENIZER_H
 
 enum token_category {
     TOK_INVALID = 0,

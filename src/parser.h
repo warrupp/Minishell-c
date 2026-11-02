@@ -1,6 +1,6 @@
 
-#ifndef TP1_PARSER_H
-#define TP1_PARSER_H
+#ifndef MINISHELL_PARSER_H
+#define MINISHELL_PARSER_H
 
 #include "tokenizer.h"
 
@@ -22,7 +22,7 @@ struct command {
  * Cette fonction prend une liste de tokens et retourne une liste de commandes.
  *
  * @param tokens list chainée de tokens
- * @return list chainée de commandes
+ * @return list chainée de commandes, ou NULL si la ligne est vide ou contient une erreur de syntaxe
  */
 struct command *cmd_parse(struct token *tokens);
 

@@ -20,7 +20,8 @@ int is_symbol_char(char c) {
     return !is_whitespace(c) && !is_operator(c) && !is_terminator(c);
 }
 
-char toEscaped(char c) {
+// Retourne le caractère correspondant à la séquence d'échappement, ou -1 si elle est invalide
+int toEscaped(int c) {
     switch (c) {
         case 'a': return '\a';
         case 'b': return '\b';
@@ -31,8 +32,15 @@ char toEscaped(char c) {
         case '\'': return '\'';
         case '\"': return '\"';
         case '0': return '\0';
-        default: return c;
+        default: return -1;
     }
+}
+
+// Ignore le reste de la ligne après une erreur, en laissant le '\n' pour terminer la ligne de tokens
+void discard_line(void) {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF);
+    if (c == '\n') ungetc(c, stdin);
 }
 
 void buffer_check_sub(char** buffer, int* buffer_size, int i) {
@@ -47,10 +55,8 @@ void buffer_check_sub(char** buffer, int* buffer_size, int i) {
     *buffer = new_buffer;
 }
 
-char* read_string_literal(char c)
+char* read_string_literal(char end)
 {
-    char end = c;
-
     int buffer_size = 32;
     char* buffer = malloc(buffer_size);
 
@@ -60,29 +66,30 @@ char* read_string_literal(char c)
 
     for(;;)
     {
-        c = (char)getchar();
+        int c = getchar();
         if(c == end) break; // End of string literal
         if(c == EOF) // Unexpected EOF
         {
+            fprintf(stderr, "syntax error: unterminated string literal\n");
             free(buffer);
             return NULL;
         }
 
         if(c == '\\') // Escape character
         {
-            c = (char)getchar();
-            char es = toEscaped(c);
+            int next = getchar();
+            c = toEscaped(next);
 
-            if(c == EOF || es == c) // Invalid escape sequence
+            if(c < 0) // Invalid escape sequence
             {
+                if(next == EOF) fprintf(stderr, "syntax error: unterminated string literal\n");
+                else fprintf(stderr, "syntax error: invalid escape sequence '\\%c'\n", next);
                 free(buffer);
                 return NULL;
             }
-
-            c = es;
         }
 
-        buffer[i++] = c;
+        buffer[i++] = (char)c;
         buffer_check_sub(&buffer, &buffer_size, i);
         if(buffer == NULL) return NULL; // Grow buffer failed
     }
@@ -134,7 +141,8 @@ struct token* tok_next(void)
     // Create token
 
     struct token* token = malloc(sizeof(struct token));
-    memset(token, 0, sizeof(struct token)); // Zero initialize
+    if (!token) return NULL; // Token allocation failed
+    memset(token, 0, sizeof(struct token)); // Zero initialize, category = TOK_INVALID
 
     switch (c) {
         case '\n': token->category = TOK_NEWLINE; break;
@@ -150,7 +158,12 @@ struct token* tok_next(void)
         {
             signed char peek = (signed char) getchar();
             if(peek == '&') token->category = TOK_LOGICAL_AND;
-            else ungetc(peek, stdin);
+            else // A single '&' (background job) is not supported
+            {
+                ungetc(peek, stdin);
+                fprintf(stderr, "syntax error: background jobs ('&') are not supported\n");
+                discard_line();
+            }
             break;
         }
         case '\"': // Fallthrough
@@ -159,10 +172,10 @@ struct token* tok_next(void)
             token->category = TOK_STRING_LITERAL;
             token->value = read_string_literal(c);
 
-            if(!token->value) // Failed to read string literal
+            if(!token->value) // Failed to read string literal: the rest of the line is ignored
             {
-                free(token);
-                return NULL;
+                token->category = TOK_INVALID;
+                discard_line();
             }
 
             break;
@@ -172,10 +185,10 @@ struct token* tok_next(void)
             token->category = TOK_SYMBOL;
             token->value = read_symbol(c);
 
-            if(!token->value) // Failed to read symbol
+            if(!token->value) // Failed to read symbol: the rest of the line is ignored
             {
-                free(token);
-                return NULL;
+                token->category = TOK_INVALID;
+                discard_line();
             }
 
             break;
